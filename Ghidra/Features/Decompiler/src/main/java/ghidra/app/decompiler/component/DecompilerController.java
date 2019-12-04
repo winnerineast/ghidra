@@ -23,7 +23,7 @@ import com.google.common.cache.CacheBuilder;
 
 import docking.widgets.fieldpanel.support.ViewerPosition;
 import ghidra.app.decompiler.*;
-import ghidra.app.plugin.core.decompile.DecompileClipboardProvider;
+import ghidra.app.plugin.core.decompile.DecompilerClipboardProvider;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.listing.*;
 import ghidra.program.model.pcode.HighFunction;
@@ -45,7 +45,7 @@ public class DecompilerController {
 	private int cacheSize;
 
 	public DecompilerController(DecompilerCallbackHandler handler, DecompileOptions options,
-			DecompileClipboardProvider clipboard) {
+			DecompilerClipboardProvider clipboard) {
 		this.cacheSize = options.getCacheSize();
 		this.callbackHandler = handler;
 		decompilerCache = buildCache();
@@ -88,7 +88,7 @@ public class DecompilerController {
 	 * Shows the function containing the given location in the decompilerPanel.  Also, positions the
 	 * decompilerPanel's cursor to the closest equivalent position. If the decompilerPanel is
 	 * already displaying the function, then only the cursor is repositioned.  To force a
-	 * re-decompile use {@link #refreshDisplay(Program, ProgramLocation)}.
+	 * re-decompile use {@link #refreshDisplay(Program, ProgramLocation, File)}.
 	 *
 	 * @param program the program for the given location
 	 * @param location the location containing the function to be displayed and the location in
@@ -153,6 +153,14 @@ public class DecompilerController {
 
 	public void setMouseNavigationEnabled(boolean enabled) {
 		decompilerPanel.setMouseNavigationEnabled(enabled);
+	}
+
+	/**
+	 * Resets the native decompiler process.  Call this method when the decompiler's view
+	 * of a program has been invalidated, such as when a new overlay space has been added.
+	 */
+	public void resetDecompiler() {
+		decompilerMgr.resetDecompiler();
 	}
 
 //==================================================================================================
@@ -248,14 +256,11 @@ public class DecompilerController {
 	}
 
 	void goToFunction(Function function, boolean newWindow) {
-		while (function.isThunk()) {
-			Function thunkedFunction = function.getThunkedFunction(false);
-			if (thunkedFunction == null || thunkedFunction.isExternal()) {
-				break;
-			}
+		Function thunkedFunction = function.getThunkedFunction(true);
+		if (thunkedFunction != null) {
 			function = thunkedFunction;
 		}
-		goToAddress(function.getEntryPoint(), newWindow);
+		callbackHandler.goToFunction(function, newWindow);
 	}
 
 	void goToLabel(String labelName, boolean newWindow) {
@@ -299,4 +304,5 @@ public class DecompilerController {
 			}
 		}
 	}
+
 }
